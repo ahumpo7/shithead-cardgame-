@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.ahumpo7.twa",
+        "sha256_cert_fingerprints": ["4C:4C:8D:D2:9F:97:8F:16:3D:C6:C0:EC:49:BF:4F:F5:51:AC:5B:55:AE:A0:62:EB:20:A3:8E:93:7E:EF:03:F4"]
+      }
+    }]
