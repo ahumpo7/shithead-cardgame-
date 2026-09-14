@@ -25,10 +25,37 @@ class GameEngine {
     this.selectedCardIds = new Set();
     this.statusMessage = '';
 
+    // Action High-Score & Elo tracking
+    this.matchScore = 0;
+    this.humanPickupCount = 0;
+    this.scoreSummary = null;
+    this.onScoreEvent = options.onScoreEvent || (() => {});
+
     this.onStateChange = options.onStateChange || (() => {});
   }
 
-  initNewGame() {
+  awardScore(points, label, icon = '🎯') {
+    if (this.gamePhase === 'ENDED' && points < 0) return;
+    this.matchScore = Math.max(0, this.matchScore + points);
+    if (typeof this.onScoreEvent === 'function') {
+      this.onScoreEvent({
+        points,
+        label,
+        icon,
+        totalScore: this.matchScore
+      });
+    }
+  }
+
+  setDifficulty(diff) {
+    this.aiDifficulty = diff || 'medium';
+    this.ai = new AI(this.aiDifficulty, this.rules);
+  }
+
+  initNewGame(options = {}) {
+    if (options.aiDifficulty) {
+      this.setDifficulty(options.aiDifficulty);
+    }
     this.deck.reset();
     this.deck.shuffle();
     this.playPile = [];
@@ -39,13 +66,21 @@ class GameEngine {
     this.selectedCardIds.clear();
     this.playDirection = 1;
     this.gamePhase = 'SWAP';
+    this.statsRecorded = false;
+    this.matchScore = 0;
+    this.humanPickupCount = 0;
+    this.scoreSummary = null;
 
     // Initialize Players
+    const humanName = (typeof window !== 'undefined' && window.profileManager)
+      ? window.profileManager.getDisplayName()
+      : (options.playerName || 'You');
+
     this.players = [];
     // Player 0 is Human
     this.players.push({
       id: 'p0',
-      name: 'You',
+      name: humanName,
       isHuman: true,
       hand: [],
       faceUp: [],
@@ -266,6 +301,9 @@ class GameEngine {
 
     if (this.rules.isValidPlay(cardsToPlay, this.playPile)) {
       this.statusMessage = `${player.name} blindly flipped a valid ${card.toString()}!`;
+      if (player.isHuman) {
+        this.awardScore(40, 'LUCKY BLIND FLIP!', '👁️');
+      }
       this.executePlay(player, cardsToPlay);
     } else {
       // Invalid flip! Pick up the entire pile AND the flipped card goes into hand!
@@ -297,6 +335,15 @@ class GameEngine {
       this.burnPile.push(...this.playPile);
       this.playPile = [];
       this.sound.playBurn();
+
+      // Award action score to human
+      if (player.isHuman) {
+        if (burnResult.reason === '10') {
+          this.awardScore(25, '10 BURN!', '🔥');
+        } else {
+          this.awardScore(60, '4-OF-A-KIND BURN!', '💥');
+        }
+      }
 
       // If cards played were 4s with special4Reverse enabled, reverse direction for each 4
       if (cardsToPlay[0].rank === '4' && this.rules.options.special4Reverse) {
@@ -343,6 +390,22 @@ class GameEngine {
       extraStatus += ` 👻 Invisible 8! (Underneath: ${eff ? eff.toString() : 'Empty Pile'})`;
     }
 
+    // Award action points to human on standard play
+    if (player.isHuman) {
+      if (cardsToPlay.length > 1) {
+        this.awardScore((cardsToPlay.length - 1) * 10, `${cardsToPlay.length}x COMBO!`, '🃏');
+      }
+      if (cardsToPlay[0].rank === '4' && this.rules.options.special4Reverse) {
+        this.awardScore(15, 'REVERSE!', '🔄');
+      } else if (cardsToPlay[0].rank === '8' && this.rules.options.special8Transparent) {
+        this.awardScore(15, 'INVISIBLE 8!', '👻');
+      } else if (cardsToPlay[0].rank === '2' && this.rules.options.special2PlayAgain) {
+        this.awardScore(15, 'RESET 2 & PLAY AGAIN!', '⚡');
+      } else if (cardsToPlay[0].rank === '2') {
+        this.awardScore(10, 'RESET 2!', '⚡');
+      }
+    }
+
     this.statusMessage = `${player.name} played ${cardsToPlay.map(c => c.toString()).join(', ')}.${extraStatus}`;
     this.replenishHand(player);
     this.checkPlayerFinished(player);
@@ -365,6 +428,14 @@ class GameEngine {
   }
 
   executePickup(player) {
+    if (player.isHuman) {
+      this.humanPickupCount++;
+      const penalty = Math.min(this.matchScore, Math.max(5, (this.playPile.length || 1) * 5));
+      if (penalty > 0) {
+        this.awardScore(-penalty, `PICKED UP PILE (-${penalty})`, '📥');
+      }
+    }
+
     // Player picks up play pile
     player.hand.push(...this.playPile);
     this.playPile = [];
@@ -407,6 +478,11 @@ class GameEngine {
       const rankStr = this.winners.length === 1 ? '1st (WINNER!)' : `${this.winners.length}th place`;
       this.statusMessage = `🎉 ${player.name} cleared all cards and placed ${rankStr}!`;
 
+      // Persist human result IMMEDIATELY so closing the app never loses the victory/placement!
+      if (player.isHuman && !this.statsRecorded) {
+        this.saveHumanResult(this.winners.length, false);
+      }
+
       // Check if game is over (only 1 player remaining with cards)
       const activePlayers = this.players.filter(p => !p.finished);
       if (activePlayers.length === 1) {
@@ -414,7 +490,10 @@ class GameEngine {
         this.gamePhase = 'ENDED';
         this.isFastSimulating = false;
         this.statusMessage = `💀 Game Over! ${this.shithead.name} is the SHITHEAD!`;
-        this.saveStats();
+        if (!this.statsRecorded) {
+          // Human was the last player left with cards (The Shithead)
+          this.saveHumanResult(this.players.length, this.shithead.isHuman);
+        }
         this.notifyStateChange();
       } else if (player.isHuman) {
         // Human player cleared all cards! Fast-sim the remaining bot players automatically
@@ -473,27 +552,156 @@ class GameEngine {
     }, delay);
   }
 
-  saveStats() {
+  saveHumanResult(humanRank, shitheadIsHuman = false) {
+    if (this.statsRecorded) return;
+    this.statsRecorded = true;
+
+    // End-of-match placement bonus
+    if (humanRank === 1) {
+      this.awardScore(250, '1ST PLACE VICTORY!', '🏆');
+    } else if (humanRank === 2) {
+      this.awardScore(100, '2ND PLACE PODIUM!', '🥈');
+    } else if (humanRank === 3) {
+      this.awardScore(50, '3RD PLACE PODIUM!', '🥉');
+    }
+
+    // Clean sheet bonus (never picked up the pile)
+    const isCleanSheet = this.humanPickupCount === 0;
+    if (isCleanSheet) {
+      this.awardScore(200, 'CLEAN SHEET! (Zero Pickups)', '🛡️');
+    }
+
     try {
-      const statsStr = localStorage.getItem('shithead_pwa_stats');
-      const stats = statsStr ? JSON.parse(statsStr) : { gamesPlayed: 0, wins: 0, losses: 0, shitheads: 0 };
-      stats.gamesPlayed++;
-      if (this.winners[0] && this.winners[0].isHuman) {
-        stats.wins++;
+      if (typeof statsManager !== 'undefined') {
+        this.scoreSummary = statsManager.recordGameResult({
+          humanRank,
+          totalPlayers: this.players.length,
+          shitheadIsHuman: shitheadIsHuman || (this.shithead && this.shithead.isHuman),
+          matchScore: this.matchScore,
+          cleanSheet: isCleanSheet,
+          difficulty: this.aiDifficulty || 'medium'
+        });
+      } else if (typeof localStorage !== 'undefined') {
+        const statsStr = localStorage.getItem('shithead_pwa_stats');
+        const stats = statsStr ? JSON.parse(statsStr) : { gamesPlayed: 0, wins: 0, losses: 0, shitheads: 0 };
+        stats.gamesPlayed++;
+        if (humanRank === 1) stats.wins++;
+        else if (shitheadIsHuman) stats.shitheads++;
+        else stats.losses++;
+        localStorage.setItem('shithead_pwa_stats', JSON.stringify(stats));
       }
-      if (this.shithead && this.shithead.isHuman) {
-        stats.shitheads++;
-      } else if (!this.winners.some(w => w.isHuman)) {
-        stats.losses++;
-      }
-      localStorage.setItem('shithead_pwa_stats', JSON.stringify(stats));
     } catch (e) {
-      console.warn('LocalStorage unavailable for stats:', e);
+      console.warn('Error recording stats:', e);
     }
   }
 
-  notifyStateChange() {
-    this.onStateChange({
+  saveStats() {
+    const humanPlace = this.winners.findIndex(w => w.isHuman) + 1;
+    const shitheadIsHuman = this.shithead && this.shithead.isHuman;
+    this.saveHumanResult(humanPlace > 0 ? humanPlace : this.players.length, shitheadIsHuman);
+  }
+
+  serializeState() {
+    return {
+      playerCount: this.playerCount,
+      aiDifficulty: this.aiDifficulty,
+      ruleSettings: this.rules.options,
+      deck: { cards: this.deck.cards },
+      playPile: this.playPile,
+      burnPile: this.burnPile,
+      players: this.players,
+      activePlayerIndex: this.activePlayerIndex,
+      playDirection: this.playDirection,
+      gamePhase: this.gamePhase,
+      winners: this.winners.map(w => w.id),
+      shithead: this.shithead ? this.shithead.id : null,
+      isFastSimulating: this.isFastSimulating,
+      statusMessage: this.statusMessage,
+      statsRecorded: this.statsRecorded,
+      matchScore: this.matchScore,
+      humanPickupCount: this.humanPickupCount,
+      scoreSummary: this.scoreSummary,
+      timestamp: Date.now()
+    };
+  }
+
+  loadSerializedState(data) {
+    if (!data) return false;
+    this.playerCount = data.playerCount || 4;
+    this.aiDifficulty = data.aiDifficulty || 'medium';
+    this.rules = new Rules(data.ruleSettings || {});
+    this.ai = new AI(this.aiDifficulty, this.rules);
+
+    this.deck = Deck.fromJSON(data.deck);
+    this.playPile = (data.playPile || []).map(c => Card.fromJSON(c));
+    this.burnPile = (data.burnPile || []).map(c => Card.fromJSON(c));
+
+    this.players = (data.players || []).map(p => ({
+      id: p.id,
+      name: p.name,
+      isHuman: !!p.isHuman,
+      hand: (p.hand || []).map(c => Card.fromJSON(c)),
+      faceUp: (p.faceUp || []).map(c => Card.fromJSON(c)),
+      faceDown: (p.faceDown || []).map(c => Card.fromJSON(c)),
+      ready: !!p.ready,
+      finished: !!p.finished
+    }));
+
+    this.activePlayerIndex = typeof data.activePlayerIndex === 'number' ? data.activePlayerIndex : 0;
+    this.playDirection = typeof data.playDirection === 'number' ? data.playDirection : 1;
+    this.gamePhase = data.gamePhase || 'PLAYING';
+    this.isFastSimulating = !!data.isFastSimulating;
+    this.statusMessage = data.statusMessage || '';
+    this.statsRecorded = !!data.statsRecorded;
+    this.matchScore = data.matchScore || 0;
+    this.humanPickupCount = data.humanPickupCount || 0;
+    this.scoreSummary = data.scoreSummary || null;
+
+    this.winners = (data.winners || []).map(wId => this.players.find(p => p.id === wId)).filter(Boolean);
+    this.shithead = data.shithead ? this.players.find(p => p.id === data.shithead) : null;
+
+    return true;
+  }
+
+  static ACTIVE_GAME_KEY = 'shithead_active_game_v1';
+
+  saveActiveGame() {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      if (this.gamePhase === 'ENDED') {
+        localStorage.removeItem(GameEngine.ACTIVE_GAME_KEY);
+      } else {
+        localStorage.setItem(GameEngine.ACTIVE_GAME_KEY, JSON.stringify(this.serializeState()));
+      }
+    } catch (e) {
+      console.warn('Error saving active game state:', e);
+    }
+  }
+
+  static getSavedActiveGame() {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(GameEngine.ACTIVE_GAME_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.gamePhase && parsed.gamePhase !== 'ENDED') {
+        return parsed;
+      }
+    } catch (e) {
+      console.warn('Error reading active game state:', e);
+    }
+    return null;
+  }
+
+  static clearSavedActiveGame() {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.removeItem(GameEngine.ACTIVE_GAME_KEY);
+    } catch (e) {}
+  }
+
+  getState() {
+    return {
       gamePhase: this.gamePhase,
       activePlayer: this.getCurrentPlayer(),
       activePlayerIndex: this.activePlayerIndex,
@@ -508,8 +716,16 @@ class GameEngine {
       statusMessage: this.statusMessage,
       winners: this.winners,
       shithead: this.shithead,
-      isFastSimulating: this.isFastSimulating
-    });
+      isFastSimulating: this.isFastSimulating,
+      matchScore: this.matchScore,
+      humanPickupCount: this.humanPickupCount,
+      scoreSummary: this.scoreSummary
+    };
+  }
+
+  notifyStateChange() {
+    this.saveActiveGame();
+    this.onStateChange(this.getState());
   }
 }
 

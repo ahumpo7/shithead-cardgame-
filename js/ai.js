@@ -105,68 +105,102 @@ class AI {
     }
 
     // --- HARD AI STRATEGY ---
-    // 1. If pile is large (>= 4 cards), try to burn with 10 or 4-of-a-kind if available!
-    if (pileSize >= 4) {
-      const burn10Move = validMoves.find(m => m[0].rank === '10');
-      if (burn10Move) return burn10Move;
+    if (this.difficulty === 'hard') {
+      // 1. If pile is large (>= 4 cards), try to burn with 10 or 4-of-a-kind if available!
+      if (pileSize >= 4) {
+        const burn10Move = validMoves.find(m => m[0].rank === '10');
+        if (burn10Move) return burn10Move;
 
-      const reset2Move = validMoves.find(m => m[0].rank === '2');
-      if (reset2Move) return reset2Move;
+        const reset2Move = validMoves.find(m => m[0].rank === '2');
+        if (reset2Move) return reset2Move;
+      }
+
+      // 2. Check if we can trigger a 4-of-a-kind burn with current pile
+      if (pile && pile.length > 0) {
+        const topRank = pile[pile.length - 1].rank;
+        let existingCount = 0;
+        for (let i = pile.length - 1; i >= 0; i--) {
+          if (pile[i].rank === topRank) existingCount++;
+          else break;
+        }
+        const needed = 4 - existingCount;
+        if (needed > 0 && needed <= 3) {
+          const matchingMove = validMoves.find(m => m[0].rank === topRank && m.length >= needed);
+          if (matchingMove) return matchingMove;
+        }
+      }
+
+      // 3. If effective top card is 7 (must play <= 7), play highest valid <= 7 card
+      if (effectiveTopCard && effectiveTopCard.rank === '7') {
+        const lowerMoves = validMoves.filter(m => m[0].value <= 7);
+        if (lowerMoves.length > 0) {
+          lowerMoves.sort((a, b) => b[0].value - a[0].value); // Highest <= 7 first
+          return lowerMoves[0];
+        }
+      }
+
+      // 4. Otherwise, sort moves strategically:
+      validMoves.sort((a, b) => {
+        const getTier = (move) => {
+          const rank = move[0].rank;
+          if (rank === '10') return pileSize > 3 ? 1 : 5;
+          if (rank === '2') return pileSize > 3 ? 2 : 4;
+          if (rank === '7') return 3;
+          if (rank === '8') return 3;
+          return 0;
+        };
+
+        const tierA = getTier(a);
+        const tierB = getTier(b);
+        if (tierA !== tierB) return tierA - tierB;
+        if (a[0].value !== b[0].value) return a[0].value - b[0].value;
+        return b.length - a.length;
+      });
+
+      return validMoves[0];
     }
 
-    // 2. Check if we can trigger a 4-of-a-kind burn with current pile
+    // --- MASTER / GRANDMASTER AI STRATEGY ---
+    // 1. Proactive Burns: burns on >= 2 cards to deny opponents
+    if (pileSize >= 2) {
+      const burn10 = validMoves.find(m => m[0].rank === '10');
+      if (burn10) return burn10;
+    }
+
+    // Check 4-of-a-kind burn opportunity
     if (pile && pile.length > 0) {
       const topRank = pile[pile.length - 1].rank;
-      let existingCount = 0;
+      let count = 0;
       for (let i = pile.length - 1; i >= 0; i--) {
-        if (pile[i].rank === topRank) existingCount++;
+        if (pile[i].rank === topRank) count++;
         else break;
       }
-      const needed = 4 - existingCount;
+      const needed = 4 - count;
       if (needed > 0 && needed <= 3) {
-        const matchingMove = validMoves.find(m => m[0].rank === topRank && m.length >= needed);
-        if (matchingMove) return matchingMove;
+        const combo = validMoves.find(m => m[0].rank === topRank && m.length >= needed);
+        if (combo) return combo;
       }
     }
 
-    // 3. If effective top card is 7 (must play <= 7), play highest valid <= 7 card
-    if (effectiveTopCard && effectiveTopCard.rank === '7') {
-      const lowerMoves = validMoves.filter(m => m[0].value <= 7);
-      if (lowerMoves.length > 0) {
-        lowerMoves.sort((a, b) => b[0].value - a[0].value); // Highest <= 7 first
-        return lowerMoves[0];
-      }
+    // 2. Play 7 to trap opponents whenever advantageous
+    const sevenMove = validMoves.find(m => m[0].rank === '7');
+    if (sevenMove && pileSize >= 1) {
+      return sevenMove;
     }
 
-    // 4. Otherwise, sort moves strategically:
-    //    - Non-special cards sorted by value ascending (play lowest non-special first)
-    //    - Prefer playing larger sets of identical ranks
-    //    - Save 2 and 10 as absolute last resort unless pile is big
+    // 3. Reset 2 if pile has value
+    if (pileSize >= 3) {
+      const reset2 = validMoves.find(m => m[0].rank === '2');
+      if (reset2) return reset2;
+    }
+
+    // 4. Rapid hand dumping: multiples first, lowest legal ranks first
     validMoves.sort((a, b) => {
-      const rankA = a[0].rank;
-      const rankB = b[0].rank;
-
-      const getTier = (move) => {
-        const rank = move[0].rank;
-        if (rank === '10') return pileSize > 3 ? 1 : 5; // Use 10 if pile is big
-        if (rank === '2') return pileSize > 3 ? 2 : 4;  // Use 2 if pile is big
-        if (rank === '7') return 3;
-        if (rank === '8') return 3;
-        return 0; // Standard cards 3,4,5,6,9,J,Q,K,A
-      };
-
-      const tierA = getTier(a);
-      const tierB = getTier(b);
-
-      if (tierA !== tierB) return tierA - tierB;
-
-      // Same tier: play lowest card value
-      if (a[0].value !== b[0].value) {
-        return a[0].value - b[0].value;
-      }
-
-      // Same rank value: play larger quantity at once
-      return b.length - a.length;
+      if (a.length !== b.length) return b.length - a.length;
+      const isSpecA = a[0].rank === '10' || a[0].rank === '2';
+      const isSpecB = b[0].rank === '10' || b[0].rank === '2';
+      if (isSpecA !== isSpecB) return isSpecA ? 1 : -1;
+      return a[0].value - b[0].value;
     });
 
     return validMoves[0];

@@ -36,6 +36,19 @@ class Card {
     this.faceUp = true;
   }
 
+  static fromJSON(data) {
+    if (!data) return null;
+    let suit = data.suit;
+    if (typeof suit === 'string') {
+      suit = Card.SUITS[suit.toUpperCase()] || { symbol: suit, name: suit.toLowerCase(), color: 'black' };
+    }
+    const card = new Card(suit, data.rank, data.value);
+    if (data.id) card.id = data.id;
+    card.selected = !!data.selected;
+    card.faceUp = data.faceUp !== false;
+    return card;
+  }
+
   toString() {
     return `${this.rank}${this.suit.symbol}`;
   }

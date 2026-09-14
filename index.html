@@ -25,10 +25,22 @@
         <span class="crown-icon">👑</span>
         <span>SHITHEAD</span>
       </div>
+      <div class="header-scores">
+        <button id="header-elo-pill" class="rank-pill" title="Competitive Rank & Elo">
+          <span id="header-tier-badge">🥈</span>
+          <span id="header-tier-name">Silver</span>
+          <span id="header-elo-val" class="elo-number">1200</span>
+        </button>
+        <div id="header-score-pill" class="score-pill" title="Match Action Score">
+          <span class="score-icon">🎯</span>
+          <span id="header-match-score">0</span>
+        </div>
+      </div>
       <div class="header-actions">
         <button id="pwa-install-btn" class="btn-icon" title="Install App" style="display: none;">📥</button>
         <button id="sound-btn" class="btn-icon" title="Toggle Sound">🔊</button>
-        <button id="stats-btn" class="btn-icon" title="Statistics">🏆</button>
+        <button id="leaderboard-btn" class="btn-icon" title="Global Leaderboards">🏆</button>
+        <button id="stats-btn" class="btn-icon" title="Career Statistics">📊</button>
         <button id="rules-btn" class="btn-icon" title="How to Play">❓</button>
         <button id="settings-btn" class="btn-icon" title="Settings">⚙️</button>
       </div>
@@ -38,6 +50,9 @@
     <div id="status-bar" class="status-bar">
       Loading game...
     </div>
+
+    <!-- Floating Arcade Score Container -->
+    <div id="floating-score-container" class="floating-score-container" aria-live="polite"></div>
 
     <!-- Main Game Table -->
     <main class="game-table">
@@ -191,7 +206,7 @@
           <div class="setting-row">
             <span>Play Again on 2</span>
             <label class="switch">
-              <input type="checkbox" id="setting-2playagain">
+              <input type="checkbox" id="setting-2playagain" checked>
               <span class="slider"></span>
             </label>
           </div>
@@ -215,8 +230,27 @@
               <option value="easy">Easy</option>
               <option value="medium" selected>Medium</option>
               <option value="hard">Hard</option>
+              <option value="master">Master</option>
             </select>
           </div>
+
+          <!-- Player Profile & Google Play Section -->
+          <div class="settings-profile-card">
+            <div class="settings-profile-header">
+              <span class="settings-profile-badge" id="settings-profile-avatar">🎮</span>
+              <div class="settings-profile-details">
+                <div class="settings-profile-name-row">
+                  <span id="settings-player-name" class="settings-player-name">Loading...</span>
+                  <button id="settings-edit-name-btn" class="btn-icon-subtle" title="Edit Unique Gamer Tag">✏️</button>
+                </div>
+                <div id="settings-cloud-status" class="settings-cloud-status">Offline Guest (Saving Locally)</div>
+              </div>
+            </div>
+            <button id="settings-gp-link-btn" class="btn-gp-connect">
+              <span>🎮 Link Google Play Account</span>
+            </button>
+          </div>
+
           <div style="margin-top: 20px;">
             <button id="new-game-btn" class="btn-primary" style="width: 100%; justify-content: center;">Start New Game</button>
           </div>
@@ -228,14 +262,40 @@
     <div id="modal-stats" class="modal-overlay">
       <div class="modal-card">
         <div class="modal-header">
-          <h2 class="modal-title">Your Statistics</h2>
+          <h2 class="modal-title">📊 Career Statistics</h2>
           <button class="btn-icon modal-close">✕</button>
         </div>
         <div class="modal-body">
+          <!-- Rank & Tier Card -->
+          <div class="stats-rank-card">
+            <div class="stats-rank-badge" id="stat-rank-badge">🥈</div>
+            <div class="stats-rank-info">
+              <div class="stats-rank-title"><span id="stat-rank-name">Silver</span> Tier</div>
+              <div class="stats-rank-elo"><span id="stat-elo">1200</span> Rating (Peak: <span id="stat-peak-elo">1200</span>)</div>
+            </div>
+          </div>
+          <div class="rank-progress-wrapper" style="margin-bottom: 16px;">
+            <div class="rank-progress-header">
+              <span id="stat-progress-label">Progress to Gold</span>
+              <span id="stat-progress-val">50%</span>
+            </div>
+            <div class="rank-progress-track">
+              <div id="stat-progress-bar" class="rank-progress-fill" style="width: 50%;"></div>
+            </div>
+          </div>
+
+          <div class="setting-row"><span>Best Match Action Score 🎯</span><span id="stat-highscore" class="rule-highlight" style="color:var(--accent-gold);">0</span></div>
+          <div class="setting-row"><span>Lifetime Action Points ⭐</span><span id="stat-totalscore" class="rule-highlight" style="color:#a855f7;">0</span></div>
           <div class="setting-row"><span>Games Played</span><span id="stat-games" class="rule-highlight">0</span></div>
-          <div class="setting-row"><span>Victories</span><span id="stat-wins" class="rule-highlight">0</span></div>
-          <div class="setting-row"><span>Shithead Losses</span><span id="stat-shitheads" class="rule-highlight">0</span></div>
+          <div class="setting-row"><span>Victories (1st Place) 🏆</span><span id="stat-wins" class="rule-highlight" style="color:var(--accent-gold);">0</span></div>
+          <div class="setting-row"><span>Podium (2nd / 3rd) 🥈🥉</span><span id="stat-podium" class="rule-highlight" style="color:#38bdf8;">0</span></div>
+          <div class="setting-row"><span>Shithead Losses 💀</span><span id="stat-shitheads" class="rule-highlight" style="color:var(--accent-rose);">0</span></div>
           <div class="setting-row"><span>Win Rate</span><span id="stat-winrate" class="rule-highlight">0%</span></div>
+          <div class="setting-row"><span>Current Win Streak 🔥</span><span id="stat-streak" class="rule-highlight">0</span></div>
+          <div class="setting-row"><span>Best Win Streak 👑</span><span id="stat-best-streak" class="rule-highlight">0</span></div>
+          <div style="margin-top: 18px;">
+            <button id="reset-stats-btn" class="btn-secondary" style="width: 100%; justify-content: center; font-size: 0.85rem; padding: 8px;">Reset Statistics</button>
+          </div>
         </div>
       </div>
     </div>
@@ -255,6 +315,32 @@
             <p id="game-over-subtitle" class="game-over-subtitle">Cleared all cards first!</p>
           </div>
 
+          <!-- Match Score & Elo Breakdown Card -->
+          <div class="game-over-score-card">
+            <div class="score-summary-grid">
+              <div class="score-stat-box">
+                <span class="score-stat-label">Match Score</span>
+                <span id="game-over-match-score" class="score-stat-value">0</span>
+                <span id="game-over-high-badge" class="high-score-badge" style="display:none;">👑 NEW BEST!</span>
+              </div>
+              <div class="score-stat-box">
+                <span class="score-stat-label">Rating Delta</span>
+                <span id="game-over-elo-delta" class="score-stat-value">+0</span>
+                <span id="game-over-elo-current" class="score-stat-sub">1200 Rating</span>
+              </div>
+            </div>
+            <div class="rank-progress-wrapper" style="margin-top: 10px;">
+              <div class="rank-progress-header">
+                <span id="game-over-tier-name">🥈 Silver Tier</span>
+                <span id="game-over-tier-progress">50%</span>
+              </div>
+              <div class="rank-progress-track">
+                <div id="game-over-tier-bar" class="rank-progress-fill" style="width: 50%;"></div>
+              </div>
+            </div>
+            <div id="game-over-promo-banner" class="promo-banner" style="display:none;"></div>
+          </div>
+
           <div class="standings-card">
             <h3 class="standings-heading">Final Standings</h3>
             <div id="game-over-standings" class="standings-list">
@@ -266,9 +352,102 @@
             <button id="game-over-new-btn" class="btn-primary game-over-btn">
               <span>🎮 Start New Game</span>
             </button>
+            <button id="game-over-lb-btn" class="btn-secondary game-over-btn">
+              <span>🏆 View Global Leaderboard</span>
+            </button>
             <button id="game-over-close-btn" class="btn-secondary game-over-btn">
               <span>👀 View Final Table</span>
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pre-Game Matchmaking & Stakes Modal -->
+    <div id="modal-pre-game" class="modal-overlay">
+      <div class="modal-card pre-game-card">
+        <div class="modal-header pre-game-header">
+          <h2 class="modal-title">⚔️ Match Stakes & Difficulty</h2>
+          <button class="btn-icon modal-close" title="Close">✕</button>
+        </div>
+        <div class="modal-body pre-game-body">
+          <!-- Player Rank Status Banner -->
+          <div class="pre-game-player-banner">
+            <div class="player-banner-rank">
+              <span id="pre-game-rank-badge" class="player-rank-icon">🥈</span>
+              <div>
+                <div class="player-rank-label">Competitive Tier</div>
+                <div class="player-rank-name"><span id="pre-game-tier-name">Silver</span> (<span id="pre-game-elo">1200</span> Elo)</div>
+              </div>
+            </div>
+            <div class="player-banner-streak">
+              <span class="streak-icon">🔥</span>
+              <div>
+                <div class="streak-label">Win Streak</div>
+                <div id="pre-game-streak" class="streak-val">0</div>
+              </div>
+            </div>
+          </div>
+
+          <p class="pre-game-instruction">Select your AI opponents' difficulty to set your match points & Elo stakes:</p>
+
+          <!-- Difficulty Cards Grid -->
+          <div class="difficulty-grid" id="pre-game-difficulty-grid">
+            <!-- Dynamically populated / styled cards for Easy, Medium, Hard, Master -->
+          </div>
+
+          <!-- Action CTA -->
+          <div class="pre-game-footer">
+            <button id="pre-game-start-btn" class="btn-primary pre-game-start-btn">
+              <span>⚔️ Start Match</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Global High Score Leaderboard Modal -->
+    <div id="modal-leaderboard" class="modal-overlay">
+      <div class="modal-card leaderboard-card">
+        <div class="modal-header leaderboard-header">
+          <div class="leaderboard-title-group">
+            <h2 class="modal-title">🏆 Global Leaderboards</h2>
+            <span class="leaderboard-subtitle">World Rankings & Competitive Hall of Fame</span>
+          </div>
+          <button class="btn-icon modal-close" title="Close">✕</button>
+        </div>
+        <div class="modal-body leaderboard-body">
+          <!-- Google Play Cloud Sync Banner -->
+          <div class="gp-sync-banner" id="gp-leaderboard-banner">
+            <div class="gp-banner-left">
+              <span class="gp-banner-icon" id="gp-banner-avatar">🎮</span>
+              <div>
+                <div class="gp-banner-title">Google Play Games</div>
+                <div class="gp-banner-status" id="gp-banner-status">Offline Guest • Scores saved locally</div>
+              </div>
+            </div>
+            <button id="leaderboard-gp-link-btn" class="btn-gp-pill">
+              <span>🎮 Link Account</span>
+            </button>
+          </div>
+
+          <!-- Leaderboard Mode Tabs -->
+          <div class="lb-tabs-container">
+            <button id="lb-tab-score" class="lb-tab is-active" data-mode="score">🏆 Match High Score</button>
+            <button id="lb-tab-elo" class="lb-tab" data-mode="elo">⚡ Competitive Elo</button>
+          </div>
+
+          <!-- Global Table List -->
+          <div class="leaderboard-table-container">
+            <div class="lb-table-header">
+              <span class="lb-col-rank">#</span>
+              <span class="lb-col-player">Player</span>
+              <span class="lb-col-tier">Tier</span>
+              <span class="lb-col-score" id="lb-metric-header">High Score</span>
+            </div>
+            <div id="leaderboard-rows-container" class="lb-rows-list">
+              <!-- Dynamically populated rows: Top 10 + 11th spot for user -->
+            </div>
           </div>
         </div>
       </div>
@@ -281,6 +460,9 @@
   <script src="js/rules.js"></script>
   <script src="js/ai.js"></script>
   <script src="js/audio.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/profile.js"></script>
+  <script src="js/leaderboard.js"></script>
   <script src="js/game.js"></script>
   <script src="js/app.js"></script>
 </body>

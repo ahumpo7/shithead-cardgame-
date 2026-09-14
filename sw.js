@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shithead-pwa-v2';
+const CACHE_NAME = 'shithead-pwa-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const ASSETS_TO_CACHE = [
   './js/rules.js',
   './js/ai.js',
   './js/audio.js',
+  './js/stats.js',
   './js/game.js',
   './js/app.js'
 ];

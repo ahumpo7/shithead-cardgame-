@@ -38,6 +38,15 @@ class Deck {
   isEmpty() {
     return this.cards.length === 0;
   }
+
+  static fromJSON(data) {
+    const deck = new Deck();
+    deck.cards = [];
+    if (data && Array.isArray(data.cards)) {
+      deck.cards = data.cards.map(c => Card.fromJSON(c));
+    }
+    return deck;
+  }
 }
 
 if (typeof module !== 'undefined' && module.exports) {

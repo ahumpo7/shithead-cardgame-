@@ -1118,3 +1118,841 @@ input:checked + .slider:before {
   padding: 12px 16px;
   font-size: 0.95rem;
 }
+
+/* ==========================================================================
+   Action High-Score & Competitive Elo Styling
+   ========================================================================== */
+
+.header-scores {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rank-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rank-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.rank-pill:active {
+  transform: translateY(0);
+}
+
+.elo-number {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.score-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: var(--accent-gold);
+  font-size: 0.78rem;
+  font-weight: 800;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.score-pill.score-bump {
+  transform: scale(1.15);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+}
+
+/* Floating Score Arcade Toasts */
+.floating-score-container {
+  position: absolute;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.floating-score-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid var(--accent-gold);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(245, 158, 11, 0.35);
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  animation: floatArcadeToast 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.floating-score-toast.is-negative {
+  border-color: var(--accent-rose);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(244, 63, 94, 0.35);
+  color: #fca5a5;
+}
+
+@keyframes floatArcadeToast {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.85);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0) scale(1.08);
+  }
+  30% {
+    transform: translateY(-4px) scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(-24px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-48px) scale(0.9);
+  }
+}
+
+/* Stats Modal Rank Card */
+.stats-rank-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  margin-bottom: 12px;
+}
+
+.stats-rank-badge {
+  font-size: 2.2rem;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+}
+
+.stats-rank-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.stats-rank-elo {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Rank Progress Bar */
+.rank-progress-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rank-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.rank-progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+.rank-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f59e0b, #ec4899);
+  transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Game Over Score & Elo Card */
+.game-over-score-card {
+  margin: 12px 0 16px 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.score-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  text-align: center;
+}
+
+.score-stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  position: relative;
+}
+
+.score-stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.score-stat-value {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--accent-gold);
+  margin: 2px 0;
+}
+
+.score-stat-sub {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.high-score-badge {
+  font-size: 0.68rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #ec4899;
+  color: #ffffff;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-top: 3px;
+  animation: pulseGlow 1.5s infinite;
+}
+
+.promo-banner {
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), rgba(236, 72, 153, 0.2));
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fef08a;
+}
+
+/* ==========================================================================
+   Pre-Game Matchmaking & Difficulty Stakes Modal
+   ========================================================================== */
+
+.pre-game-card {
+  max-width: 520px;
+  width: 94%;
+}
+
+.pre-game-player-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  margin-bottom: 14px;
+}
+
+.player-banner-rank {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.player-rank-icon {
+  font-size: 1.8rem;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+}
+
+.player-rank-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.player-rank-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.player-banner-streak {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.streak-icon {
+  font-size: 1.2rem;
+}
+
+.streak-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.streak-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+}
+
+.pre-game-instruction {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.difficulty-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: 6px 4px 12px 4px;
+}
+
+@media (min-width: 480px) {
+  .difficulty-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.diff-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.diff-card:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.diff-card.is-recommended {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(30, 41, 59, 0.65);
+}
+
+.diff-card.is-selected {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.35), inset 0 0 12px rgba(245, 158, 11, 0.1);
+}
+
+.diff-rec-banner,
+.diff-rec-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: linear-gradient(90deg, #ec4899, #f59e0b);
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+  align-self: flex-start;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+  position: static;
+  line-height: 1.2;
+}
+
+.diff-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.diff-card-badge {
+  font-size: 1.3rem;
+}
+
+.diff-card-title {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.diff-stakes-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.diff-stake-win {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #4ade80;
+}
+
+.diff-stake-loss {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--accent-rose);
+}
+
+.diff-desc {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.3;
+  margin-top: 4px;
+}
+
+.pre-game-footer {
+  display: flex;
+  margin-top: 8px;
+}
+
+.pre-game-start-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 14px 20px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+/* ==========================================================================
+   Player Profile & Google Play Games Styling
+   ========================================================================== */
+
+.settings-profile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.settings-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-profile-badge {
+  font-size: 1.8rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.settings-profile-details {
+  flex: 1;
+}
+
+.settings-profile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-player-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.btn-icon-subtle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.btn-icon-subtle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.settings-cloud-status {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.btn-gp-connect {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #00865f, #006947);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 134, 95, 0.25);
+}
+
+.btn-gp-connect:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-gp-connect.is-linked {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+  box-shadow: none;
+}
+
+/* ==========================================================================
+   Global High Score Leaderboard Modal Styling
+   ========================================================================== */
+
+.leaderboard-card {
+  max-width: 580px;
+  width: 95%;
+}
+
+.leaderboard-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 12px;
+}
+
+.leaderboard-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.leaderboard-subtitle {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.gp-sync-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0, 134, 95, 0.18), rgba(15, 23, 42, 0.6));
+  border: 1px solid rgba(0, 134, 95, 0.35);
+  margin-bottom: 14px;
+}
+
+.gp-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gp-banner-icon {
+  font-size: 1.5rem;
+}
+
+.gp-banner-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.gp-banner-status {
+  font-size: 0.70rem;
+  color: #94a3b8;
+}
+
+.btn-gp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #00865f;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.btn-gp-pill:hover {
+  background: #009d6f;
+  transform: translateY(-1px);
+}
+
+.btn-gp-pill.is-connected {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #cbd5e1;
+}
+
+/* Leaderboard Mode Tabs */
+.lb-tabs-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lb-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.lb-tab:hover {
+  color: #ffffff;
+}
+
+.lb-tab.is-active {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-gold);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Leaderboard Table */
+.leaderboard-table-container {
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.lb-table-header {
+  display: grid;
+  grid-template-columns: 50px 1fr 90px 100px;
+  align-items: center;
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.4);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lb-rows-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 48vh;
+  overflow-y: auto;
+}
+
+.lb-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 90px 100px;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.86rem;
+  transition: background 0.15s ease;
+}
+
+.lb-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lb-col-rank {
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+}
+
+.lb-rank-num {
+  font-size: 0.88rem;
+  color: #94a3b8;
+}
+
+.lb-podium-1 .lb-rank-num {
+  font-size: 1.25rem;
+  filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.6));
+}
+
+.lb-podium-2 .lb-rank-num {
+  font-size: 1.15rem;
+  filter: drop-shadow(0 0 6px rgba(148, 163, 184, 0.6));
+}
+
+.lb-podium-3 .lb-rank-num {
+  font-size: 1.15rem;
+  filter: drop-shadow(0 0 6px rgba(217, 119, 6, 0.6));
+}
+
+.lb-col-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-player-flag {
+  font-size: 0.95rem;
+}
+
+.lb-user-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--accent-gold);
+  color: #0f172a;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+
+.lb-col-tier {
+  font-size: 0.76rem;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lb-col-score {
+  text-align: right;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--accent-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Current user inside top 10 */
+.lb-row.is-user {
+  background: rgba(245, 158, 11, 0.12);
+  border-left: 3px solid var(--accent-gold);
+  font-weight: 800;
+}
+
+.lb-row.is-user .lb-col-player {
+  color: #fef08a;
+}
+
+/* Pinned 11th Spot Divider & Row */
+.lb-pinned-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 14px;
+  background: rgba(15, 23, 42, 0.95);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  border-top: 1px dashed rgba(245, 158, 11, 0.35);
+  border-bottom: 1px dashed rgba(245, 158, 11, 0.35);
+}
+
+.lb-row.is-pinned-11th {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.18), rgba(15, 23, 42, 0.9));
+  border-left: 4px solid var(--accent-gold);
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.4);
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+}
+
+.lb-row.is-pinned-11th .lb-col-player {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+@media (max-width: 480px) {
+  .lb-table-header,
+  .lb-row {
+    grid-template-columns: 42px 1fr 75px 80px;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+}
+
+
+

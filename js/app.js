@@ -25,15 +25,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalSettings = document.getElementById('modal-settings');
   const modalStats = document.getElementById('modal-stats');
   const modalGameOver = document.getElementById('modal-game-over');
+  const modalPreGame = document.getElementById('modal-pre-game');
+  const modalLeaderboard = document.getElementById('modal-leaderboard');
   const gameOverNewBtn = document.getElementById('game-over-new-btn');
+  const gameOverLbBtn = document.getElementById('game-over-lb-btn');
   const gameOverCloseBtn = document.getElementById('game-over-close-btn');
+  const preGameStartBtn = document.getElementById('pre-game-start-btn');
+  const preGameDiffGrid = document.getElementById('pre-game-difficulty-grid');
+  let selectedPreGameDifficulty = 'medium';
 
   let gameOverModalShownForCurrentGame = false;
 
   if (gameOverNewBtn) {
     gameOverNewBtn.addEventListener('click', () => {
       closeModal(modalGameOver);
-      startNewGame();
+      openPreGameModal();
+    });
+  }
+
+  if (gameOverLbBtn) {
+    gameOverLbBtn.addEventListener('click', () => {
+      closeModal(modalGameOver);
+      updateProfileUI();
+      updateLeaderboardDisplay(currentLeaderboardMode);
+      openModal(modalLeaderboard);
     });
   }
 
@@ -45,11 +60,89 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Modal Triggers
   document.getElementById('rules-btn').addEventListener('click', () => openModal(modalRules));
-  document.getElementById('settings-btn').addEventListener('click', () => openModal(modalSettings));
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    updateProfileUI();
+    openModal(modalSettings);
+  });
   document.getElementById('stats-btn').addEventListener('click', () => {
     updateStatsDisplay();
     openModal(modalStats);
   });
+
+  const leaderboardBtn = document.getElementById('leaderboard-btn');
+  if (leaderboardBtn) {
+    leaderboardBtn.addEventListener('click', () => {
+      updateProfileUI();
+      updateLeaderboardDisplay(currentLeaderboardMode);
+      openModal(modalLeaderboard);
+    });
+  }
+
+  // Google Play Linking Buttons
+  const settingsGpBtn = document.getElementById('settings-gp-link-btn');
+  if (settingsGpBtn) {
+    settingsGpBtn.addEventListener('click', handleGooglePlayToggle);
+  }
+
+  const lbGpBtn = document.getElementById('leaderboard-gp-link-btn');
+  if (lbGpBtn) {
+    lbGpBtn.addEventListener('click', handleGooglePlayToggle);
+  }
+
+  // Edit Name Button
+  const editNameBtn = document.getElementById('settings-edit-name-btn');
+  if (editNameBtn) {
+    editNameBtn.addEventListener('click', () => {
+      if (typeof profileManager === 'undefined') return;
+      const profile = profileManager.getProfile();
+      if (profile.isGooglePlayLinked) {
+        alert(`Your name is linked to Google Play as "${profile.googlePlayGamerTag}".\nTo use a custom handle, unlink your Google Play account first.`);
+        return;
+      }
+      const newName = prompt('Enter your unique card player handle (max 20 characters):', profileManager.getDisplayName());
+      if (newName !== null && newName.trim()) {
+        profileManager.setPlayerName(newName.trim());
+        updateProfileUI();
+        updateLeaderboardDisplay(currentLeaderboardMode);
+      }
+    });
+  }
+
+  // Leaderboard Tabs
+  const lbTabScore = document.getElementById('lb-tab-score');
+  if (lbTabScore) {
+    lbTabScore.addEventListener('click', () => updateLeaderboardDisplay('score'));
+  }
+
+  const lbTabElo = document.getElementById('lb-tab-elo');
+  if (lbTabElo) {
+    lbTabElo.addEventListener('click', () => updateLeaderboardDisplay('elo'));
+  }
+
+  const headerEloPill = document.getElementById('header-elo-pill');
+  if (headerEloPill) {
+    headerEloPill.addEventListener('click', () => {
+      updateStatsDisplay();
+      openModal(modalStats);
+    });
+  }
+
+  const resetStatsBtn = document.getElementById('reset-stats-btn');
+  if (resetStatsBtn) {
+    resetStatsBtn.addEventListener('click', () => {
+      if (confirm('Reset your Shithead career statistics? This cannot be undone.')) {
+        if (typeof statsManager !== 'undefined') {
+          statsManager.resetStats();
+        }
+        updateStatsDisplay();
+      }
+    });
+  }
+
+  // Pre-populate stats & profile on startup
+  updateProfileUI();
+  updateStatsDisplay();
+
   document.getElementById('sound-btn').addEventListener('click', (e) => {
     sound.enabled = !sound.enabled;
     e.target.textContent = sound.enabled ? '🔊' : '🔇';
@@ -72,8 +165,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('new-game-btn').addEventListener('click', () => {
+    if (game && game.gamePhase !== 'ENDED') {
+      alert('Please finish your current game before starting a new one!');
+      return;
+    }
     closeModal(modalSettings);
-    startNewGame();
+    openPreGameModal();
   });
 
   // Action Buttons
@@ -120,15 +217,190 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function startNewGame() {
+  function updateHeaderElo() {
+    try {
+      const stats = (typeof statsManager !== 'undefined') ? statsManager.getStats() : { elo: 1200 };
+      const eloVal = stats.elo || 1200;
+      const tier = (typeof StatsManager !== 'undefined') ? StatsManager.getTier(eloVal) : { name: 'Silver', badge: '🥈', elo: eloVal };
+      const hBadge = document.getElementById('header-tier-badge'); if (hBadge) hBadge.textContent = tier.badge;
+      const hName = document.getElementById('header-tier-name'); if (hName) hName.textContent = tier.name;
+      const hVal = document.getElementById('header-elo-val'); if (hVal) hVal.textContent = tier.elo;
+    } catch (e) {}
+  }
+
+  function handleScoreEvent({ points, label, icon, totalScore }) {
+    const scoreEl = document.getElementById('header-match-score');
+    if (scoreEl) scoreEl.textContent = totalScore;
+    const scorePill = document.getElementById('header-score-pill');
+    if (scorePill) {
+      scorePill.classList.remove('score-bump');
+      void scorePill.offsetWidth;
+      scorePill.classList.add('score-bump');
+      setTimeout(() => scorePill.classList.remove('score-bump'), 250);
+    }
+
+    const container = document.getElementById('floating-score-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    const isNegative = points < 0;
+    toast.className = `floating-score-toast ${isNegative ? 'is-negative' : ''}`;
+    toast.innerHTML = `
+      <span>${icon}</span>
+      <span>${label}</span>
+      <span style="color:${isNegative ? 'var(--accent-rose)' : 'var(--accent-gold)'}; margin-left:auto;">${points > 0 ? '+' : ''}${points}</span>
+    `;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.remove();
+    }, 1750);
+  }
+
+  function openPreGameModal() {
+    if (!modalPreGame) {
+      startNewGame(true);
+      return;
+    }
+
+    const stats = (typeof statsManager !== 'undefined')
+      ? statsManager.getStats()
+      : { elo: 1200, currentStreak: 0 };
+    const tier = (typeof StatsManager !== 'undefined')
+      ? StatsManager.getTier(stats.elo)
+      : { name: 'Silver', badge: '🥈' };
+    const recommendedDiff = (typeof StatsManager !== 'undefined')
+      ? StatsManager.getRecommendedDifficulty(stats.elo)
+      : 'medium';
+
+    // Default to recommended difficulty or currently selected setting
+    const currentSettingDiff = document.getElementById('setting-difficulty')
+      ? document.getElementById('setting-difficulty').value
+      : 'medium';
+    selectedPreGameDifficulty = recommendedDiff || currentSettingDiff || 'medium';
+
+    // Update banner elements
+    const rankBadgeEl = document.getElementById('pre-game-rank-badge');
+    const tierNameEl = document.getElementById('pre-game-tier-name');
+    const eloEl = document.getElementById('pre-game-elo');
+    const streakEl = document.getElementById('pre-game-streak');
+
+    if (rankBadgeEl) rankBadgeEl.textContent = tier.badge;
+    if (tierNameEl) tierNameEl.textContent = tier.name;
+    if (eloEl) eloEl.textContent = stats.elo;
+    if (streakEl) streakEl.textContent = stats.currentStreak || 0;
+
+    // Render difficulty cards in grid
+    if (preGameDiffGrid && typeof StatsManager !== 'undefined') {
+      preGameDiffGrid.innerHTML = '';
+      const stakes = StatsManager.DIFFICULTY_STAKES;
+
+      Object.entries(stakes).forEach(([key, conf]) => {
+        const isSelected = key === selectedPreGameDifficulty;
+        const isRec = key === recommendedDiff;
+
+        const card = document.createElement('div');
+        card.className = `diff-card ${isSelected ? 'is-selected' : ''} ${isRec ? 'is-recommended' : ''}`;
+        card.setAttribute('data-difficulty', key);
+
+        const winEloVal = Math.abs(conf.winElo || 0);
+        const lossEloVal = Math.abs(conf.lossElo || 0);
+        const descText = conf.description || conf.desc || '';
+
+        card.innerHTML = `
+          ${isRec ? `<div class="diff-rec-banner">⭐ Recommended for Your Rank (${tier.name})</div>` : ''}
+          <div class="diff-card-header">
+            <span class="diff-card-badge">${conf.badge}</span>
+            <span class="diff-card-title">${conf.name} Bot</span>
+          </div>
+          <div class="diff-stakes-row">
+            <div class="diff-stake-win">🏆 1st Place Win: +${winEloVal} Elo (${conf.scoreMultiplier}x Points)</div>
+            <div class="diff-stake-loss">💩 Shithead Loss: -${lossEloVal} Elo</div>
+          </div>
+          <div class="diff-desc">${descText}</div>
+        `;
+
+        card.addEventListener('click', () => {
+          selectedPreGameDifficulty = key;
+          preGameDiffGrid.querySelectorAll('.diff-card').forEach(c => c.classList.remove('is-selected'));
+          card.classList.add('is-selected');
+        });
+
+        preGameDiffGrid.appendChild(card);
+      });
+    }
+
+    openModal(modalPreGame);
+  }
+
+  if (preGameStartBtn) {
+    preGameStartBtn.addEventListener('click', () => {
+      if (modalPreGame) closeModal(modalPreGame);
+      const diffSelect = document.getElementById('setting-difficulty');
+      if (diffSelect) diffSelect.value = selectedPreGameDifficulty;
+      startNewGame(true, selectedPreGameDifficulty);
+    });
+  }
+
+  function startNewGame(forceFresh = false, chosenDifficulty = null) {
     const soundEnabled = document.getElementById('setting-sound').checked;
     const special7 = document.getElementById('setting-7lower').checked;
     const special8 = document.getElementById('setting-8transparent').checked;
     const special4Reverse = document.getElementById('setting-4reverse') ? document.getElementById('setting-4reverse').checked : true;
-    const special2PlayAgain = document.getElementById('setting-2playagain') ? document.getElementById('setting-2playagain').checked : false;
-    const difficulty = document.getElementById('setting-difficulty').value;
+    const special2PlayAgain = document.getElementById('setting-2playagain') ? document.getElementById('setting-2playagain').checked : true;
+
+    if (chosenDifficulty) {
+      const diffSelect = document.getElementById('setting-difficulty');
+      if (diffSelect) diffSelect.value = chosenDifficulty;
+    }
+    const difficulty = chosenDifficulty || document.getElementById('setting-difficulty').value;
 
     sound.enabled = soundEnabled;
+
+    // Check if there is an active match in progress saved in localStorage
+    const savedActiveGame = !forceFresh ? GameEngine.getSavedActiveGame() : null;
+
+    if (savedActiveGame) {
+      game = new GameEngine({
+        playerCount: savedActiveGame.playerCount || 4,
+        aiDifficulty: savedActiveGame.aiDifficulty || difficulty,
+        sound: sound,
+        ruleSettings: savedActiveGame.ruleSettings || {
+          special7Lower: special7,
+          special8Transparent: special8,
+          special4Reverse: special4Reverse,
+          special2PlayAgain: special2PlayAgain
+        },
+        onScoreEvent: handleScoreEvent,
+        onStateChange: renderUI
+      });
+
+      const loaded = game.loadSerializedState(savedActiveGame);
+      if (loaded) {
+        selectedSwapHandCardId = null;
+        gameOverModalShownForCurrentGame = false;
+        if (modalGameOver) closeModal(modalGameOver);
+        if (modalPreGame) closeModal(modalPreGame);
+
+        const scoreEl = document.getElementById('header-match-score');
+        if (scoreEl) scoreEl.textContent = game.matchScore || 0;
+        updateHeaderElo();
+
+        renderUI(game.getState());
+
+        // If active player is an AI bot and game is in PLAYING phase, resume AI turn
+        if (game.gamePhase === 'PLAYING') {
+          const curPlayer = game.getCurrentPlayer();
+          if (curPlayer && !curPlayer.isHuman && !curPlayer.finished) {
+            game.scheduleAITurn();
+          }
+        }
+        return;
+      }
+    }
+
+    // Otherwise, start a brand new game
+    GameEngine.clearSavedActiveGame();
 
     game = new GameEngine({
       playerCount: 4,
@@ -140,13 +412,20 @@ document.addEventListener('DOMContentLoaded', () => {
         special4Reverse: special4Reverse,
         special2PlayAgain: special2PlayAgain
       },
+      onScoreEvent: handleScoreEvent,
       onStateChange: renderUI
     });
 
     selectedSwapHandCardId = null;
     gameOverModalShownForCurrentGame = false;
     if (modalGameOver) closeModal(modalGameOver);
-    game.initNewGame();
+    if (modalPreGame) closeModal(modalPreGame);
+
+    const scoreEl = document.getElementById('header-match-score');
+    if (scoreEl) scoreEl.textContent = '0';
+    updateHeaderElo();
+
+    game.initNewGame({ aiDifficulty: difficulty });
   }
 
   function renderUI(state) {
@@ -154,6 +433,24 @@ document.addEventListener('DOMContentLoaded', () => {
       statusBar.innerHTML = `<span style="color:var(--accent-gold); font-weight:800; letter-spacing:0.04em;">⚡ FAST-SIMULATING REMAINING PLAYERS...</span>`;
     } else {
       statusBar.textContent = state.statusMessage;
+    }
+
+    // Update Header Match Score & Elo
+    const headerScoreEl = document.getElementById('header-match-score');
+    if (headerScoreEl && typeof state.matchScore === 'number') {
+      headerScoreEl.textContent = state.matchScore;
+    }
+    updateHeaderElo();
+
+    // Guard "Start New Game" button in Settings while match is active
+    const newGameBtn = document.getElementById('new-game-btn');
+    if (newGameBtn) {
+      const isGameActive = state.gamePhase !== 'ENDED';
+      newGameBtn.disabled = isGameActive;
+      newGameBtn.style.opacity = isGameActive ? '0.5' : '1';
+      newGameBtn.style.cursor = isGameActive ? 'not-allowed' : 'pointer';
+      newGameBtn.textContent = isGameActive ? 'Match in Progress' : 'Start New Game';
+      newGameBtn.title = isGameActive ? 'Finish your current game to start a new one' : '';
     }
 
     // Trigger Game Over Modal when match concludes
@@ -760,16 +1057,211 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateStatsDisplay() {
     try {
-      const statsStr = localStorage.getItem('shithead_pwa_stats');
-      const stats = statsStr ? JSON.parse(statsStr) : { gamesPlayed: 0, wins: 0, losses: 0, shitheads: 0 };
-      document.getElementById('stat-games').textContent = stats.gamesPlayed;
-      document.getElementById('stat-wins').textContent = stats.wins;
-      document.getElementById('stat-shitheads').textContent = stats.shitheads;
-      const winRate = stats.gamesPlayed > 0 ? Math.round((stats.wins / stats.gamesPlayed) * 100) : 0;
-      document.getElementById('stat-winrate').textContent = `${winRate}%`;
+      const stats = (typeof statsManager !== 'undefined') ? statsManager.getStats() : { gamesPlayed: 0, wins: 0, secondPlaces: 0, thirdPlaces: 0, shitheads: 0, currentStreak: 0, bestStreak: 0, elo: 1200, peakElo: 1200, highScore: 0, totalScore: 0 };
+      
+      const games = stats.gamesPlayed || 0;
+      const wins = stats.wins || 0;
+      const podium = (stats.secondPlaces || 0) + (stats.thirdPlaces || 0);
+      const shitheads = stats.shitheads || 0;
+      const winRate = games > 0 ? Math.round((wins / games) * 100) : 0;
+      const streak = stats.currentStreak || 0;
+      const bestStreak = stats.bestStreak || 0;
+      const elo = stats.elo || 1200;
+      const peakElo = stats.peakElo || 1200;
+      const highScore = stats.highScore || 0;
+      const totalScore = stats.totalScore || 0;
+
+      const tier = (typeof StatsManager !== 'undefined') ? StatsManager.getTier(elo) : { name: 'Silver', badge: '🥈', color: '#94a3b8', progress: 50, pointsNeeded: 100, nextTier: 'Gold' };
+
+      // Update Rank & Tier card in modal
+      const rankBadgeEl = document.getElementById('stat-rank-badge'); if (rankBadgeEl) rankBadgeEl.textContent = tier.badge;
+      const rankNameEl = document.getElementById('stat-rank-name'); if (rankNameEl) { rankNameEl.textContent = tier.name; rankNameEl.style.color = tier.color; }
+      const eloEl = document.getElementById('stat-elo'); if (eloEl) eloEl.textContent = elo;
+      const peakEloEl = document.getElementById('stat-peak-elo'); if (peakEloEl) peakEloEl.textContent = peakElo;
+
+      const progLabelEl = document.getElementById('stat-progress-label');
+      if (progLabelEl) progLabelEl.textContent = tier.nextTier ? `Progress to ${tier.nextTier} (+${tier.pointsNeeded} Elo)` : 'Max Tier Achieved!';
+      const progValEl = document.getElementById('stat-progress-val'); if (progValEl) progValEl.textContent = `${tier.progress}%`;
+      const progBarEl = document.getElementById('stat-progress-bar'); if (progBarEl) progBarEl.style.width = `${tier.progress}%`;
+
+      // High scores & career totals
+      const hsEl = document.getElementById('stat-highscore'); if (hsEl) hsEl.textContent = highScore;
+      const tsEl = document.getElementById('stat-totalscore'); if (tsEl) tsEl.textContent = totalScore;
+
+      // Base rows
+      const gEl = document.getElementById('stat-games'); if (gEl) gEl.textContent = games;
+      const wEl = document.getElementById('stat-wins'); if (wEl) wEl.textContent = wins;
+      const pEl = document.getElementById('stat-podium'); if (pEl) pEl.textContent = podium;
+      const sEl = document.getElementById('stat-shitheads'); if (sEl) sEl.textContent = shitheads;
+      const wrEl = document.getElementById('stat-winrate'); if (wrEl) wrEl.textContent = `${winRate}%`;
+      const stEl = document.getElementById('stat-streak'); if (stEl) stEl.textContent = streak;
+      const bstEl = document.getElementById('stat-best-streak'); if (bstEl) bstEl.textContent = bestStreak;
+
+      // Keep header in sync
+      updateHeaderElo();
     } catch (e) {
       console.warn('Could not update stats display:', e);
     }
+  }
+
+  let currentLeaderboardMode = 'score';
+
+  function updateProfileUI() {
+    if (typeof profileManager === 'undefined') return;
+    const profile = profileManager.getProfile();
+    const displayName = profileManager.getDisplayName();
+
+    // Settings Profile Card
+    const nameEl = document.getElementById('settings-player-name');
+    if (nameEl) nameEl.textContent = displayName;
+
+    const cloudStatusEl = document.getElementById('settings-cloud-status');
+    if (cloudStatusEl) {
+      if (profile.isGooglePlayLinked) {
+        cloudStatusEl.textContent = `Connected to Google Play • Cloud Synced`;
+        cloudStatusEl.style.color = '#4ade80';
+      } else {
+        cloudStatusEl.textContent = `Offline Guest (Saving Locally)`;
+        cloudStatusEl.style.color = '#94a3b8';
+      }
+    }
+
+    const gpBtn = document.getElementById('settings-gp-link-btn');
+    if (gpBtn) {
+      if (profile.isGooglePlayLinked) {
+        gpBtn.classList.add('is-linked');
+        gpBtn.innerHTML = `<span>✓ Google Play Linked (${profile.googlePlayGamerTag})</span>`;
+      } else {
+        gpBtn.classList.remove('is-linked');
+        gpBtn.innerHTML = `<span>🎮 Link Google Play Account</span>`;
+      }
+    }
+
+    // Leaderboard Banner
+    const lbStatusEl = document.getElementById('gp-banner-status');
+    if (lbStatusEl) {
+      if (profile.isGooglePlayLinked) {
+        lbStatusEl.textContent = `Connected as ${profile.googlePlayGamerTag} • Cloud Synced`;
+        lbStatusEl.style.color = '#4ade80';
+      } else {
+        lbStatusEl.textContent = `Offline Guest • Link Google Play to verify rank`;
+        lbStatusEl.style.color = '#94a3b8';
+      }
+    }
+
+    const lbGpBtn = document.getElementById('leaderboard-gp-link-btn');
+    if (lbGpBtn) {
+      if (profile.isGooglePlayLinked) {
+        lbGpBtn.classList.add('is-connected');
+        lbGpBtn.textContent = 'Linked';
+      } else {
+        lbGpBtn.classList.remove('is-connected');
+        lbGpBtn.textContent = 'Link Account';
+      }
+    }
+  }
+
+  function handleGooglePlayToggle() {
+    if (typeof profileManager === 'undefined') return;
+    const profile = profileManager.getProfile();
+
+    if (profile.isGooglePlayLinked) {
+      if (confirm(`Unlink Google Play account (${profile.googlePlayGamerTag})? Your stats will continue saving locally.`)) {
+        profileManager.unlinkGooglePlayAccount();
+        updateProfileUI();
+        updateLeaderboardDisplay(currentLeaderboardMode);
+      }
+    } else {
+      const currentName = profileManager.getDisplayName();
+      const suggestedTag = `PlayGamer_${currentName.replace(/[^a-zA-Z0-9]/g, '')}`;
+      const enteredTag = prompt('Link Google Play Games Account:\nEnter your Google Play Gamer Tag:', suggestedTag);
+      if (enteredTag !== null) {
+        const cleanTag = enteredTag.trim() || suggestedTag;
+        profileManager.linkGooglePlayAccount(cleanTag);
+        if (typeof statsManager !== 'undefined') {
+          profileManager.syncCloudScores(statsManager.getStats());
+        }
+        updateProfileUI();
+        updateLeaderboardDisplay(currentLeaderboardMode);
+        alert(`🎮 Google Play Account Linked as "${cleanTag}"!\nYour high score and Elo rating are synced to the cloud.`);
+      }
+    }
+  }
+
+  function updateLeaderboardDisplay(mode = 'score') {
+    if (typeof leaderboardManager === 'undefined') return;
+    currentLeaderboardMode = mode;
+
+    const stats = (typeof statsManager !== 'undefined')
+      ? statsManager.getStats()
+      : { highScore: 0, elo: 1200 };
+    const displayName = (typeof profileManager !== 'undefined')
+      ? profileManager.getDisplayName()
+      : 'You';
+    const tier = (typeof StatsManager !== 'undefined')
+      ? StatsManager.getTier(stats.elo)
+      : { name: 'Silver', badge: '🥈' };
+
+    const data = leaderboardManager.getLeaderboardDisplay({
+      userScore: stats.highScore || 0,
+      userElo: stats.elo || 1200,
+      userName: displayName,
+      userTier: tier,
+      mode: currentLeaderboardMode
+    });
+
+    // Update Tab styling
+    const tabScore = document.getElementById('lb-tab-score');
+    const tabElo = document.getElementById('lb-tab-elo');
+    if (tabScore) tabScore.classList.toggle('is-active', currentLeaderboardMode === 'score');
+    if (tabElo) tabElo.classList.toggle('is-active', currentLeaderboardMode === 'elo');
+
+    const colHeader = document.getElementById('lb-metric-header');
+    if (colHeader) colHeader.textContent = currentLeaderboardMode === 'elo' ? 'Elo Rating' : 'High Score';
+
+    const container = document.getElementById('leaderboard-rows-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const medals = ['🥇', '🥈', '🥉'];
+
+    data.items.forEach((item) => {
+      // If this item is the pinned 11th spot, insert the divider right before it!
+      if (item.isPinned11th) {
+        const divider = document.createElement('div');
+        divider.className = 'lb-pinned-divider';
+        divider.textContent = '─── YOUR GLOBAL STANDING ───';
+        container.appendChild(divider);
+      }
+
+      const row = document.createElement('div');
+      const isPodium = item.rank <= 3 && !item.isPinned11th;
+      const podiumClass = item.rank === 1 ? 'lb-podium-1' : item.rank === 2 ? 'lb-podium-2' : item.rank === 3 ? 'lb-podium-3' : '';
+      row.className = `lb-row ${item.isUser ? 'is-user' : ''} ${item.isPinned11th ? 'is-pinned-11th' : ''} ${podiumClass}`;
+
+      const rankBadge = isPodium ? medals[item.rank - 1] : `#${item.rank}`;
+      const scoreVal = currentLeaderboardMode === 'elo' ? `${item.elo}` : `${item.score}`;
+
+      row.innerHTML = `
+        <div class="lb-col-rank">
+          <span class="lb-rank-num">${rankBadge}</span>
+        </div>
+        <div class="lb-col-player">
+          <span class="lb-player-flag">${item.country || '🎮'}</span>
+          <span>${item.name}</span>
+          ${item.isUser ? '<span class="lb-user-tag">YOU</span>' : ''}
+        </div>
+        <div class="lb-col-tier">
+          <span>${item.tier ? item.tier.badge : '🥈'}</span>
+          <span>${item.tier ? item.tier.name : 'Silver'}</span>
+        </div>
+        <div class="lb-col-score">
+          ${scoreVal}
+        </div>
+      `;
+
+      container.appendChild(row);
+    });
   }
 
   function showGameOverModal(state) {
@@ -823,6 +1315,59 @@ document.addEventListener('DOMContentLoaded', () => {
       if (subtitleEl) subtitleEl.textContent = humanPlace > 0 ? `You placed ${humanPlace}${getOrdinalSuffix(humanPlace)}!` : 'Good game!';
     }
 
+    // Populate Match Score & Elo in Game Over screen
+    const matchScore = state.matchScore || 0;
+    const summary = state.scoreSummary || null;
+
+    const goScoreEl = document.getElementById('game-over-match-score');
+    if (goScoreEl) goScoreEl.textContent = matchScore;
+
+    const goHighBadge = document.getElementById('game-over-high-badge');
+    if (goHighBadge) {
+      goHighBadge.style.display = (summary && summary.isNewHighScore) ? 'inline-block' : 'none';
+    }
+
+    const goEloDelta = document.getElementById('game-over-elo-delta');
+    const goEloCur = document.getElementById('game-over-elo-current');
+    if (summary) {
+      const delta = summary.eloDelta || 0;
+      if (goEloDelta) {
+        goEloDelta.textContent = delta > 0 ? `+${delta}` : `${delta}`;
+        goEloDelta.style.color = delta > 0 ? '#4ade80' : delta < 0 ? 'var(--accent-rose)' : 'var(--accent-gold)';
+      }
+      if (goEloCur) {
+        goEloCur.textContent = `${summary.newElo} Rating`;
+      }
+
+      const newTier = summary.newTier || (typeof StatsManager !== 'undefined' ? StatsManager.getTier(summary.newElo) : { name: 'Silver', badge: '🥈', progress: 50 });
+      const tierNameEl = document.getElementById('game-over-tier-name');
+      if (tierNameEl) tierNameEl.textContent = `${newTier.badge} ${newTier.name} Tier`;
+
+      const tierProgEl = document.getElementById('game-over-tier-progress');
+      if (tierProgEl) tierProgEl.textContent = `${newTier.progress}%`;
+
+      const tierBarEl = document.getElementById('game-over-tier-bar');
+      if (tierBarEl) {
+        tierBarEl.style.width = '0%';
+        setTimeout(() => {
+          tierBarEl.style.width = `${newTier.progress}%`;
+        }, 300);
+      }
+
+      const promoBanner = document.getElementById('game-over-promo-banner');
+      if (promoBanner) {
+        if (summary.promoted) {
+          promoBanner.style.display = 'block';
+          promoBanner.textContent = `🎉 PROMOTED TO ${newTier.name.toUpperCase()} TIER!`;
+        } else if (summary.demoted) {
+          promoBanner.style.display = 'block';
+          promoBanner.textContent = `⚠️ Demoted to ${newTier.name} Tier`;
+        } else {
+          promoBanner.style.display = 'none';
+        }
+      }
+    }
+
     // Build standings list
     if (standingsList) {
       standingsList.innerHTML = '';
@@ -856,6 +1401,8 @@ document.addEventListener('DOMContentLoaded', () => {
         standingsList.appendChild(row);
       }
     }
+
+    updateStatsDisplay();
 
     setTimeout(() => {
       openModal(modalGameOver);
@@ -900,6 +1447,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Start initial game
-  startNewGame();
+  // Start initial game or prompt difficulty
+  if (GameEngine.getSavedActiveGame()) {
+    startNewGame(false);
+  } else {
+    openPreGameModal();
+  }
 });

@@ -8,7 +8,7 @@ class Rules {
       special7Lower: true,       // 7 means next player must play <= 7
       special8Transparent: true, // 8 is transparent (effective rank is card under 8)
       special4Reverse: true,     // 4 reverses the order of play
-      special2PlayAgain: false,  // 2 allows player to play again immediately
+      special2PlayAgain: true,   // 2 allows player to play again immediately
       burnOnFourOfAKind: true,   // 4 of a kind on pile causes burn
       allowMultipleSameRank: true, // Can play multiple cards of same rank at once
       ...options
