@@ -234,13 +234,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const scorePill = document.getElementById('header-score-pill');
     if (scorePill) {
       scorePill.classList.remove('score-bump');
-      void scorePill.offsetWidth;
-      scorePill.classList.add('score-bump');
-      setTimeout(() => scorePill.classList.remove('score-bump'), 250);
+      requestAnimationFrame(() => {
+        scorePill.classList.add('score-bump');
+        setTimeout(() => scorePill.classList.remove('score-bump'), 250);
+      });
     }
 
     const container = document.getElementById('floating-score-container');
     if (!container) return;
+
+    // Throttle to maximum 2 floating toasts to prevent frame drops/flickering on mobile
+    while (container.children.length >= 2) {
+      container.removeChild(container.firstChild);
+    }
 
     const toast = document.createElement('div');
     const isNegative = points < 0;
@@ -253,8 +259,10 @@ document.addEventListener('DOMContentLoaded', () => {
     container.appendChild(toast);
 
     setTimeout(() => {
-      toast.remove();
-    }, 1750);
+      if (toast.parentNode === container) {
+        toast.remove();
+      }
+    }, 1500);
   }
 
   function openPreGameModal() {
