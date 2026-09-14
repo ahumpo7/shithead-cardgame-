@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Shithead - Modern Card Game PWA</title>
+  
+  <!-- PWA Metadata -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Shithead">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app-container">
+    <!-- Navbar Header -->
+    <header class="app-header">
+      <div class="brand-title">
+        <span class="crown-icon">👑</span>
+        <span>SHITHEAD</span>
+      </div>
+      <div class="header-actions">
+        <button id="pwa-install-btn" class="btn-icon" title="Install App" style="display: none;">📥</button>
+        <button id="sound-btn" class="btn-icon" title="Toggle Sound">🔊</button>
+        <button id="stats-btn" class="btn-icon" title="Statistics">🏆</button>
+        <button id="rules-btn" class="btn-icon" title="How to Play">❓</button>
+        <button id="settings-btn" class="btn-icon" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Turn & Action Status Bar -->
+    <div id="status-bar" class="status-bar">
+      Loading game...
+    </div>
+
+    <!-- Main Game Table -->
+    <main class="game-table">
+      <!-- Top Slot (Bot 2) -->
+      <div class="player-slot-top">
+        <div id="badge-p2" class="player-badge">
+          <span class="player-name">Sam (AI)</span>
+          <span id="count-p2" class="card-count-pill">9 cards</span>
+        </div>
+        <div id="table-cards-p2" class="table-cards-container"></div>
+      </div>
+
+      <!-- Middle Row (Bot 1, Center Piles, Bot 3) -->
+      <div class="table-middle-row">
+        <!-- Left Slot (Bot 1) -->
+        <div class="player-slot-left">
+          <div id="badge-p1" class="player-badge">
+            <span class="player-name">Alex</span>
+            <span id="count-p1" class="card-count-pill">9</span>
+          </div>
+          <div id="table-cards-p1" class="table-cards-container"></div>
+        </div>
+
+        <!-- Center Deck & Play Pile -->
+        <div class="center-piles-area">
+          <div id="direction-indicator" class="direction-indicator" title="Current Play Direction">
+            <span class="direction-icon">↻</span>
+            <span class="direction-label">Clockwise</span>
+          </div>
+
+          <div class="pile-container">
+            <span class="pile-label">Draw Deck</span>
+            <div id="draw-deck-slot" class="pile-slot has-cards">
+              <div class="cards-stack">
+                <div class="playing-card face-down">
+                  <div class="card-back-pattern">
+                    <span class="card-back-icon">🂠</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <span id="deck-count" class="pile-label" style="margin-top:2px;">24 cards</span>
+          </div>
+
+          <div class="pile-container">
+            <span class="pile-label">Play Pile</span>
+            <div id="play-pile-slot" class="pile-slot">
+              <div id="play-pile-stack" class="cards-stack"></div>
+            </div>
+            <div id="effective-pile-indicator" class="effective-pile-indicator" style="display: none;">
+              <span class="effective-icon">👁️</span>
+              <span class="effective-label">Under 8:</span>
+              <span id="effective-card-preview" class="effective-card-preview">--</span>
+            </div>
+            <span id="pile-count" class="pile-label" style="margin-top:2px;">0 cards</span>
+          </div>
+        </div>
+
+        <!-- Right Slot (Bot 3) -->
+        <div class="player-slot-right">
+          <div id="badge-p3" class="player-badge">
+            <span class="player-name">Jordan</span>
+            <span id="count-p3" class="card-count-pill">9</span>
+          </div>
+          <div id="table-cards-p3" class="table-cards-container"></div>
+        </div>
+      </div>
+
+      <!-- Bottom Slot (Human Player) -->
+      <div class="player-slot-bottom">
+        <div id="badge-p0" class="player-badge">
+          <span class="player-name">You</span>
+          <span id="count-p0" class="card-count-pill">9 cards</span>
+        </div>
+
+        <!-- Human Table Cards -->
+        <div id="table-cards-p0" class="table-cards-container"></div>
+
+        <!-- Human Hand Cards -->
+        <div class="human-hand-container">
+          <div id="hand-cards-p0" class="hand-cards-row"></div>
+        </div>
+
+        <!-- Action Control Buttons -->
+        <div class="action-controls-bar">
+          <button id="swap-ready-btn" class="btn-primary" style="display: none;">Ready to Play! 🚀</button>
+          <button id="play-btn" class="btn-primary" disabled>Play Selected Cards</button>
+          <button id="pickup-btn" class="btn-secondary" disabled>Pick Up Pile</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Modals -->
+    <!-- Rules Modal -->
+    <div id="modal-rules" class="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 class="modal-title">How to Play Shithead</h2>
+          <button class="btn-icon modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <p><span class="rule-highlight">Goal:</span> Clear all your cards (Hand, Face-Up, and Face-Down) as fast as possible. The last player left with cards is crowned the <span class="rule-highlight">SHITHEAD</span>!</p>
+          
+          <p><span class="rule-highlight">Swap Phase:</span> At the start, swap cards between your Hand and your 3 Face-Up table cards to set up your final line of defense!</p>
+
+          <p><span class="rule-highlight">Playing Cards:</span> Must play a card equal to or HIGHER than the top card of the Play Pile. You can play multiple cards of the same rank together.</p>
+
+          <p><span class="rule-highlight">Special Power Cards:</span></p>
+          <ul>
+            <li><span class="rule-highlight">2 (Reset):</span> Can be played on anything. Resets pile value to 2. <em>(Optional Rule: Playing a 2 allows you to play again!)</em></li>
+            <li><span class="rule-highlight">4 (Reverse - Optional):</span> Can be played at ANY time on ANY card! Reverses the order of play (↻ Clockwise / ↺ Counter-Clockwise)!</li>
+            <li><span class="rule-highlight">10 (Burn):</span> Can be played on anything. Immediately burns the pile and gives you another turn!</li>
+            <li><span class="rule-highlight">7 (Must Play ≤ 7):</span> Next player must play a 7 or lower (or a wildcard 2, 10, 8, or 4).</li>
+            <li><span class="rule-highlight">8 (Invisible / Transparent):</span> Can be played on ANY card! It is invisible to the next player—they must play against whatever card is underneath the 8.</li>
+            <li><span class="rule-highlight">4-of-a-Kind Burn:</span> 4 identical cards in a row burn the pile!</li>
+          </ul>
+
+          <p style="margin-top: 10px;"><span class="rule-highlight">How to Play & Drag & Drop:</span></p>
+          <ul>
+            <li><span class="rule-highlight">Drag & Drop:</span> Drag cards from your hand directly onto the Play Pile to play them! During the Swap Phase, drag a hand card onto any face-up table card to swap.</li>
+            <li><span class="rule-highlight">Tap / Click:</span> Tap cards to select multiple matching cards of the same rank, then tap "Play Cards" or "Pickup Pile".</li>
+          </ul>
+
+          <p style="margin-top: 10px;"><span class="rule-highlight">Picking Up:</span> If you cannot or choose not to play a valid card, you MUST pick up the entire pile into your hand.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="modal-settings" class="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 class="modal-title">Game Settings</h2>
+          <button class="btn-icon modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="setting-row">
+            <span>Sound Effects</span>
+            <label class="switch">
+              <input type="checkbox" id="setting-sound" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <span>4 Reverses Play Order</span>
+            <label class="switch">
+              <input type="checkbox" id="setting-4reverse" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <span>Play Again on 2</span>
+            <label class="switch">
+              <input type="checkbox" id="setting-2playagain">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <span>7 Must Play ≤ 7</span>
+            <label class="switch">
+              <input type="checkbox" id="setting-7lower" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <span>8 Transparent Card</span>
+            <label class="switch">
+              <input type="checkbox" id="setting-8transparent" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <span>AI Bot Difficulty</span>
+            <select id="setting-difficulty" style="background:#1e293b; color:#fff; border:1px solid #475569; padding:4px 8px; border-radius:6px;">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+          <div style="margin-top: 20px;">
+            <button id="new-game-btn" class="btn-primary" style="width: 100%; justify-content: center;">Start New Game</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="modal-stats" class="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 class="modal-title">Your Statistics</h2>
+          <button class="btn-icon modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="setting-row"><span>Games Played</span><span id="stat-games" class="rule-highlight">0</span></div>
+          <div class="setting-row"><span>Victories</span><span id="stat-wins" class="rule-highlight">0</span></div>
+          <div class="setting-row"><span>Shithead Losses</span><span id="stat-shitheads" class="rule-highlight">0</span></div>
+          <div class="setting-row"><span>Win Rate</span><span id="stat-winrate" class="rule-highlight">0%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over / Winner Modal -->
+    <div id="modal-game-over" class="modal-overlay">
+      <div class="modal-card game-over-card">
+        <div class="modal-header game-over-header">
+          <h2 id="game-over-title" class="modal-title game-over-title">🏆 VICTORY!</h2>
+          <button class="btn-icon modal-close" title="View Final Table">✕</button>
+        </div>
+        <div class="modal-body game-over-body">
+          <div id="game-over-hero" class="game-over-hero">
+            <div id="game-over-icon" class="game-over-icon">🏆</div>
+            <div id="game-over-badge" class="game-over-badge">WINNER</div>
+            <div id="game-over-winner-name" class="game-over-winner-name">You</div>
+            <p id="game-over-subtitle" class="game-over-subtitle">Cleared all cards first!</p>
+          </div>
+
+          <div class="standings-card">
+            <h3 class="standings-heading">Final Standings</h3>
+            <div id="game-over-standings" class="standings-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div class="game-over-actions">
+            <button id="game-over-new-btn" class="btn-primary game-over-btn">
+              <span>🎮 Start New Game</span>
+            </button>
+            <button id="game-over-close-btn" class="btn-secondary game-over-btn">
+              <span>👀 View Final Table</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Core Files -->
+  <script src="js/card.js"></script>
+  <script src="js/deck.js"></script>
+  <script src="js/rules.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

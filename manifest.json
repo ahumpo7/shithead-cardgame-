@@ -1,0 +1,40 @@
+{
+  "name": "Shithead - Modern Card Game",
+  "short_name": "Shithead",
+  "description": "Play the classic card game Shithead (Palace/Shed) with smart AI, customizable rules, and offline PWA support.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "en-US",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quick Game",
+      "short_name": "Play",
+      "description": "Start a new Shithead card game against AI",
+      "url": "./index.html?mode=quick"
+    }
+  ],
+  "categories": ["games", "entertainment"]
+}
